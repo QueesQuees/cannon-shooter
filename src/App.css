@@ -1,12 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Tilt+Warp&display=swap");
 
-#game-container {
-  /* background: url("cannon_shooter_assets/background.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain; */
-}
-
 canvas {
   display: block;
   overflow: hidden;
