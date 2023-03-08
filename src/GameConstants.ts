@@ -1,3 +1,5 @@
+import { degToRad } from "./helpers";
+
 export const ARROW_START_X = 200;
 export const ARROW_START_Y = 620;
 export const ARROW_RADIUS = 20;
@@ -15,5 +17,4 @@ export const SPARK_START_Y = -999;
 export const SPARK_START_X = -999;
 export const CLOUD_SPEED_RANGE = [20, 100]; // px/s
 export const CANNON_SCALE = 0.5;
-export const CANNON_ROTATE_SPEED = 100; // deg/s
-export const CANNON_ROTATE_ANGLE_LIMIT = 50; // deg
+export const CANNON_ROTATE_ANGLE_LIMIT = degToRad(50); // deg

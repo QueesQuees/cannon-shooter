@@ -9,6 +9,7 @@ import Cloud2 from "./cannon_shooter_assets/cloud2.png";
 import Cloud3 from "./cannon_shooter_assets/cloud3.png";
 import Cloud4 from "./cannon_shooter_assets/cloud4.png";
 import * as GameSettings from "./GameConstants";
+import { randomInRange } from "./helpers";
 
 type GameImage = {
   image: HTMLImageElement;
@@ -33,10 +34,16 @@ function App() {
     context: null,
   });
 
+  const gameStates = useRef({
+    interactionSeparateLine: 0,
+    fired: false,
+  });
+
   const mouseProps = useRef<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
+    startPos: { x: number; y: number };
+    currentPos: { x: number; y: number };
+    pressed: boolean;
+  }>({ startPos: { x: 0, y: 0 }, currentPos: { x: 0, y: 0 }, pressed: false });
 
   //background
   const cloudProps = useRef<
@@ -157,6 +164,8 @@ function App() {
     isAllImageLoaded: boolean;
     angle: number;
     direction: number;
+    pivot: { x: number; y: number };
+    willHandleRotate: boolean;
   }>({
     imageFront: createGameImage(),
     imageBack: createGameImage(),
@@ -165,6 +174,8 @@ function App() {
     isAllImageLoaded: false,
     angle: 0,
     direction: 1,
+    pivot: { x: 0, y: 0 },
+    willHandleRotate: false,
   });
 
   const loadCannonImage = useCallback(() => {
@@ -190,53 +201,75 @@ function App() {
     }
   }, []);
 
-  const cannonUpdate = useCallback(
-    (delta: number) => {
-      if (gameProps.canvas && cannonProps.current.isAllImageLoaded) {
-        // let nextAngle =
-        //   cannonProps.current.angle +
-        //   (cannonProps.current.direction *
-        //     (GameSettings.CANNON_ROTATE_SPEED * delta)) /
-        //     1000;
-
-        // if (Math.abs(nextAngle) >= GameSettings.CANNON_ROTATE_ANGLE_LIMIT) {
-        //   // calculate the accurate angle if the new angle goes over the limit
-        //   nextAngle =
-        //     cannonProps.current.direction *
-        //     (GameSettings.CANNON_ROTATE_ANGLE_LIMIT -
-        //       (Math.abs(nextAngle) - GameSettings.CANNON_ROTATE_ANGLE_LIMIT));
-        //   cannonProps.current.direction *= -1;
-        // }
-
-        // cannonProps.current.angle = nextAngle;
-
-        for (const imgObj of [
-          cannonProps.current.imageBack,
-          cannonProps.current.imageProjectile,
-          cannonProps.current.imageFront,
-          cannonProps.current.imageWheel,
-        ]) {
-          imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
-          imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
-          imgObj.x = gameProps.canvas.width / 2 - imgObj.w / 2;
-        }
-
-        cannonProps.current.imageWheel.y =
-          gameProps.canvas.height * 0.85 - cannonProps.current.imageWheel.h;
-
-        for (const imgObj of [
-          cannonProps.current.imageBack,
-          cannonProps.current.imageFront,
-        ]) {
-          imgObj.y = cannonProps.current.imageWheel.y - imgObj.h + 30;
-        }
-
-        cannonProps.current.imageProjectile.y =
-          cannonProps.current.imageBack.y - 10;
+  const cannonUpdate = useCallback(() => {
+    if (gameProps.canvas && cannonProps.current.isAllImageLoaded) {
+      for (const imgObj of [
+        cannonProps.current.imageBack,
+        cannonProps.current.imageProjectile,
+        cannonProps.current.imageFront,
+        cannonProps.current.imageWheel,
+      ]) {
+        imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
+        imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
+        imgObj.x = gameProps.canvas.width / 2 - imgObj.w / 2;
       }
-    },
-    [gameProps.canvas]
-  );
+
+      cannonProps.current.imageWheel.y =
+        gameStates.current.interactionSeparateLine -
+        cannonProps.current.imageWheel.h;
+
+      for (const imgObj of [
+        cannonProps.current.imageBack,
+        cannonProps.current.imageFront,
+      ]) {
+        imgObj.y = cannonProps.current.imageWheel.y - imgObj.h + 30;
+      }
+
+      cannonProps.current.imageProjectile.y =
+        cannonProps.current.imageBack.y - 10;
+
+      cannonProps.current.pivot = {
+        x:
+          cannonProps.current.imageWheel.x +
+          cannonProps.current.imageWheel.w / 2,
+        y:
+          cannonProps.current.imageWheel.y +
+          cannonProps.current.imageWheel.h / 2,
+      };
+
+      if (mouseProps.current.pressed) {
+        // if mouse only moves under the pivot, don't do anything
+        if (
+          !cannonProps.current.willHandleRotate &&
+          mouseProps.current.startPos.y > cannonProps.current.pivot.y &&
+          mouseProps.current.currentPos.y > cannonProps.current.pivot.y
+        ) {
+          cannonProps.current.willHandleRotate = false;
+        } else {
+          cannonProps.current.willHandleRotate = true;
+        }
+      } else {
+        cannonProps.current.willHandleRotate = false;
+      }
+
+      if (cannonProps.current.willHandleRotate) {
+        const { x: x1, y: y1 } = cannonProps.current.pivot;
+        let { x: x2, y: y2 } = mouseProps.current.currentPos;
+
+        // reverse the mouse y position if it's below the pivot
+        if (y1 < y2) {
+          y2 = y1 - (y2 - y1);
+        }
+
+        let newAngle = -Math.atan((x2 - x1) / (y2 - y1));
+        if (Math.abs(newAngle) >= GameSettings.CANNON_ROTATE_ANGLE_LIMIT)
+          newAngle =
+            GameSettings.CANNON_ROTATE_ANGLE_LIMIT * Math.sign(newAngle);
+
+        cannonProps.current.angle = newAngle;
+      }
+    }
+  }, [gameProps.canvas]);
 
   const cannonDraw = useCallback(() => {
     if (
@@ -246,14 +279,15 @@ function App() {
     ) {
       gameProps.context.save();
 
-      const translateX =
-        cannonProps.current.imageWheel.x + cannonProps.current.imageWheel.w / 2;
-      const translateY =
-        cannonProps.current.imageWheel.y + cannonProps.current.imageWheel.h / 2;
-
-      gameProps.context.translate(translateX, translateY);
-      gameProps.context.rotate(degToRad(cannonProps.current.angle));
-      gameProps.context.translate(-translateX, -translateY);
+      gameProps.context.translate(
+        cannonProps.current.pivot.x,
+        cannonProps.current.pivot.y
+      );
+      gameProps.context.rotate(cannonProps.current.angle);
+      gameProps.context.translate(
+        -cannonProps.current.pivot.x,
+        -cannonProps.current.pivot.y
+      );
 
       for (const imgObj of [
         cannonProps.current.imageBack,
@@ -495,12 +529,12 @@ function App() {
   //   );
   // }
 
-  const setMousePos = useCallback(
+  const getMousePos = useCallback(
     (event: MouseEvent | TouchEvent, rect: DOMRect) => {
       const mousePoint =
         "changedTouches" in event ? event.changedTouches[0] : event;
 
-      mouseProps.current = {
+      return {
         x: mousePoint.clientX - rect.left,
         y: mousePoint.clientY - rect.top,
       };
@@ -513,21 +547,24 @@ function App() {
       const rect = gameProps.canvas.getBoundingClientRect();
 
       const handleMouseMove = (event: MouseEvent | TouchEvent) => {
-        setMousePos(event, rect);
+        mouseProps.current.currentPos = getMousePos(event, rect);
       };
 
       gameProps.canvas.addEventListener("mousemove", handleMouseMove);
       gameProps.canvas.addEventListener("touchmove", handleMouseMove);
 
       const handleMouseDown = (event: MouseEvent | TouchEvent) => {
-        setMousePos(event, rect);
+        mouseProps.current.startPos = getMousePos(event, rect);
+        mouseProps.current.currentPos = mouseProps.current.startPos;
+        mouseProps.current.pressed = true;
       };
 
       gameProps.canvas.addEventListener("mousedown", handleMouseDown);
       gameProps.canvas.addEventListener("touchstart", handleMouseDown);
 
       const handleMouseUp = (event: MouseEvent | TouchEvent) => {
-        setMousePos(event, rect);
+        mouseProps.current.currentPos = getMousePos(event, rect);
+        mouseProps.current.pressed = false;
       };
 
       gameProps.canvas.addEventListener("mouseup", handleMouseUp);
@@ -542,7 +579,7 @@ function App() {
         gameProps.canvas?.removeEventListener("touchend", handleMouseUp);
       };
     }
-  }, [gameProps.canvas, setMousePos]);
+  }, [gameProps.canvas, getMousePos]);
 
   const initGameProps = useCallback(() => {
     if (canvasRef.current) {
@@ -556,6 +593,8 @@ function App() {
 
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      gameStates.current.interactionSeparateLine = canvas.height * 0.85;
+      canvas.oncontextmenu = () => false; // prevent right click / hold down
 
       return mouseEventListen();
     }
@@ -564,7 +603,7 @@ function App() {
   const gameUpdate = useCallback(
     (now: number, delta: number) => {
       cloudsUpdate(delta);
-      cannonUpdate(delta);
+      cannonUpdate();
       //   arrowUpdate();
       //   ballUpdate();
     },
@@ -574,12 +613,6 @@ function App() {
   const gameDraw = useCallback(() => {
     backgroundDraw();
     cannonDraw();
-    //   gameProps.context.clearRect(
-    //     0,
-    //     0,
-    //     GameSettings.GAME_WIDTH,
-    //     GameSettings.GAME_HEIGHT
-    //   );
     //   arrowDraw();
     //   ballDraw();
     //   sparkDraw();
@@ -619,6 +652,8 @@ function App() {
       if (gameProps.canvas) {
         gameProps.canvas.width = window.innerWidth;
         gameProps.canvas.height = window.innerHeight;
+        gameStates.current.interactionSeparateLine =
+          gameProps.canvas.height * 0.85;
       }
     };
     window.addEventListener("resize", listener);
@@ -644,26 +679,4 @@ function createGameImage(): GameImage {
     x: Infinity,
     y: Infinity,
   };
-}
-
-function degToRad(deg: number) {
-  return deg * (Math.PI / 180);
-}
-
-function randomInRange(min: number, max: number): number {
-  let result = Math.random() * (max - min) + min;
-
-  if (min < 0) {
-    if (max < 0) {
-      min = Math.abs(min);
-      result = Math.random() * (min + max) - min;
-    }
-  } else {
-    if (max > 0) {
-      min = min * -1;
-      result = Math.random() * (min + max) - min;
-    }
-  }
-
-  return result;
 }
