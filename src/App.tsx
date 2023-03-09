@@ -144,13 +144,6 @@ function App() {
       gameProps.context.fillStyle = "#929aa0";
       gameProps.context.fillRect(0, height * 0.75, width, height * 0.15);
 
-      // draw text
-      const fontSize = Math.min(Math.max(width * 0.05, 20), 40);
-      gameProps.context.font = `${fontSize}px Tilt Warp`;
-      gameProps.context.fillStyle = "#373535";
-      gameProps.context.textAlign = "center";
-      gameProps.context.fillText("TAP TO SHOOT", width / 2, height * 0.88);
-
       gameProps.context.restore();
     }
   }, [cloudsDraw, gameProps.canvas, gameProps.context]);
