@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
-import CannonProjectile from "./cannon_shooter_assets/bullet.png";
+import Projectile from "./cannon_shooter_assets/bullet.png";
 import CannonBack from "./cannon_shooter_assets/cannon_back.png";
 import CannonFront from "./cannon_shooter_assets/cannon_front.png";
 import CannonWheel from "./cannon_shooter_assets/cannon_wheel.png";
@@ -36,6 +36,7 @@ function App() {
 
   const gameStates = useRef({
     interactionSeparateLine: 0,
+    willFire: false,
     fired: false,
   });
 
@@ -110,14 +111,8 @@ function App() {
       gameProps.context.save();
 
       cloudProps.current.forEach(item => {
-        if (gameProps.context && item.isImageLoaded && item.x && item.y) {
-          gameProps.context.drawImage(
-            item.image,
-            item.x,
-            item.y,
-            item.w,
-            item.h
-          );
+        if (gameProps.context) {
+          drawGameImage(gameProps.context, item);
         }
       });
 
@@ -148,26 +143,101 @@ function App() {
     }
   }, [cloudsDraw, gameProps.canvas, gameProps.context]);
 
+  //projectile
+  const projectileProps = useRef({
+    ...createGameImage(),
+    // isMoving: false,
+    // isDone: false,
+    speedX: 0,
+    speedY: 0,
+    angle: 0,
+  });
+
+  const loadProjectileImage = useCallback(() => {
+    projectileProps.current.image = new Image();
+    projectileProps.current.image.onload = () => {
+      projectileProps.current.isImageLoaded = true;
+      projectileProps.current.w =
+        projectileProps.current.image.width * GameSettings.PROJECTILE_SCALE;
+      projectileProps.current.h =
+        projectileProps.current.image.height * GameSettings.PROJECTILE_SCALE;
+    };
+    projectileProps.current.image.src = Projectile;
+  }, []);
+
+  const projectileUpdate = useCallback(
+    (delta: number) => {
+      if (gameProps.canvas) {
+        if (
+          !gameStates.current.fired &&
+          gameStates.current.willFire &&
+          !mouseProps.current.pressed
+        ) {
+          gameStates.current.fired = true;
+
+          // calculate the true position of the projectile,
+          // because before being fired, the projectile is rotated by the canvas API, so its position isn't changed
+          const sina = Math.sin(cannonProps.current.angle);
+          const cosa = Math.cos(cannonProps.current.angle);
+          const x =
+            projectileProps.current.x +
+            projectileProps.current.w / 2 -
+            cannonProps.current.pivot.x;
+          const y =
+            projectileProps.current.y +
+            projectileProps.current.h / 2 -
+            cannonProps.current.pivot.y;
+
+          projectileProps.current.speedX = sina;
+          projectileProps.current.speedY = cosa;
+          projectileProps.current.x =
+            x * cosa -
+            y * sina -
+            projectileProps.current.w / 2 +
+            cannonProps.current.pivot.x;
+          projectileProps.current.y =
+            x * sina +
+            y * cosa -
+            projectileProps.current.h / 2 +
+            cannonProps.current.pivot.y;
+        }
+
+        if (gameStates.current.fired) {
+          const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
+          projectileProps.current.x +=
+            hypotenuse * projectileProps.current.speedX;
+          projectileProps.current.y -=
+            hypotenuse * projectileProps.current.speedY;
+        } else {
+          projectileProps.current.x =
+            gameProps.canvas.width / 2 - projectileProps.current.w / 2;
+          projectileProps.current.y = cannonProps.current.projectileBase;
+        }
+      }
+    },
+    [gameProps.canvas]
+  );
+
   //cannon
   const cannonProps = useRef<{
     imageFront: GameImage;
     imageBack: GameImage;
     imageWheel: GameImage;
-    imageProjectile: GameImage;
     isAllImageLoaded: boolean;
     angle: number;
     direction: number;
     pivot: { x: number; y: number };
+    projectileBase: number;
     willHandleRotate: boolean;
   }>({
     imageFront: createGameImage(),
     imageBack: createGameImage(),
     imageWheel: createGameImage(),
-    imageProjectile: createGameImage(),
     isAllImageLoaded: false,
     angle: 0,
     direction: 1,
     pivot: { x: 0, y: 0 },
+    projectileBase: 0,
     willHandleRotate: false,
   });
 
@@ -175,21 +245,21 @@ function App() {
     cannonProps.current.imageFront.image.src = CannonFront;
     cannonProps.current.imageBack.image.src = CannonBack;
     cannonProps.current.imageWheel.image.src = CannonWheel;
-    cannonProps.current.imageProjectile.image.src = CannonProjectile;
 
-    const imgLoaded = [false, false, false, false];
+    const imgLoaded = [false, false, false];
     for (const [i, imgObj] of Array.from(
       [
         cannonProps.current.imageBack,
         cannonProps.current.imageFront,
         cannonProps.current.imageWheel,
-        cannonProps.current.imageProjectile,
       ].entries()
     )) {
       imgObj.image.onload = () => {
         imgLoaded[i] = true;
-        cannonProps.current.imageFront.isImageLoaded = true;
+        imgObj.isImageLoaded = true;
         cannonProps.current.isAllImageLoaded = imgLoaded.every(i => i);
+        imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
+        imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
       };
     }
   }, []);
@@ -198,12 +268,9 @@ function App() {
     if (gameProps.canvas && cannonProps.current.isAllImageLoaded) {
       for (const imgObj of [
         cannonProps.current.imageBack,
-        cannonProps.current.imageProjectile,
         cannonProps.current.imageFront,
         cannonProps.current.imageWheel,
       ]) {
-        imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
-        imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
         imgObj.x = gameProps.canvas.width / 2 - imgObj.w / 2;
       }
 
@@ -218,8 +285,7 @@ function App() {
         imgObj.y = cannonProps.current.imageWheel.y - imgObj.h + 30;
       }
 
-      cannonProps.current.imageProjectile.y =
-        cannonProps.current.imageBack.y - 10;
+      cannonProps.current.projectileBase = cannonProps.current.imageBack.y - 10;
 
       cannonProps.current.pivot = {
         x:
@@ -231,15 +297,19 @@ function App() {
       };
 
       if (mouseProps.current.pressed) {
-        // if mouse only moves under the pivot, don't do anything
-        if (
-          !cannonProps.current.willHandleRotate &&
-          mouseProps.current.startPos.y > cannonProps.current.pivot.y &&
-          mouseProps.current.currentPos.y > cannonProps.current.pivot.y
-        ) {
-          cannonProps.current.willHandleRotate = false;
+        if (mouseProps.current.currentPos.y > cannonProps.current.pivot.y) {
+          // if mouse only moves under the pivot, don't do anything
+          if (
+            !cannonProps.current.willHandleRotate &&
+            mouseProps.current.startPos.y > cannonProps.current.pivot.y
+          ) {
+            cannonProps.current.willHandleRotate = false;
+          }
+
+          gameStates.current.willFire = false;
         } else {
           cannonProps.current.willHandleRotate = true;
+          gameStates.current.willFire = true;
         }
       } else {
         cannonProps.current.willHandleRotate = false;
@@ -264,7 +334,7 @@ function App() {
     }
   }, [gameProps.canvas]);
 
-  const cannonDraw = useCallback(() => {
+  const cannonAndProjectileDraw = useCallback(() => {
     if (
       gameProps.context &&
       gameProps.canvas &&
@@ -282,146 +352,36 @@ function App() {
         -cannonProps.current.pivot.y
       );
 
-      for (const imgObj of [
-        cannonProps.current.imageBack,
-        cannonProps.current.imageProjectile,
-        cannonProps.current.imageFront,
-        cannonProps.current.imageWheel,
-      ]) {
-        gameProps.context.drawImage(
-          imgObj.image,
-          imgObj.x,
-          imgObj.y,
-          imgObj.w,
-          imgObj.h
+      drawGameImage(gameProps.context, cannonProps.current.imageBack);
+
+      if (gameStates.current.fired) {
+        gameProps.context.save();
+
+        // cancel the cannon rotation
+        // because after being fired, the projectile's position will be handled using its true position
+        gameProps.context.translate(
+          cannonProps.current.pivot.x,
+          cannonProps.current.pivot.y
         );
+        gameProps.context.rotate(-cannonProps.current.angle);
+        gameProps.context.translate(
+          -cannonProps.current.pivot.x,
+          -cannonProps.current.pivot.y
+        );
+
+        drawGameImage(gameProps.context, projectileProps.current);
+
+        gameProps.context.restore();
+      } else {
+        drawGameImage(gameProps.context, projectileProps.current);
       }
+
+      drawGameImage(gameProps.context, cannonProps.current.imageFront);
+      drawGameImage(gameProps.context, cannonProps.current.imageWheel);
 
       gameProps.context.restore();
     }
   }, [gameProps.canvas, gameProps.context]);
-
-  // //arrow props
-  // const [arrowProps, setArrowProps] = useState({
-  //   image: null,
-  //   isImageLoaded: false,
-  //   isMoving: false,
-  //   isDone: false,
-  //   arrowX: GameSettings.ARROW_START_X,
-  //   arrowY: GameSettings.ARROW_START_Y,
-  //   speed: GameSettings.ARROW_SPEED,
-  //   speedX: 0,
-  //   speedY: 0,
-  // });
-
-  // function resetArrowState() {
-  //   setArrowProps(pre => {
-  //     pre.isMoving = false;
-  //     pre.isDone = false;
-  //     pre.arrowX = GameSettings.ARROW_START_X;
-  //     pre.arrowY = GameSettings.ARROW_START_Y;
-  //     pre.speed = GameSettings.ARROW_SPEED;
-  //     pre.speedX = 0;
-  //     pre.speedY = 0;
-  //     return pre;
-  //   });
-  // }
-
-  // function loadArrowImage() {
-  //   setArrowProps(pre => {
-  //     pre.image = new Image();
-  //     pre.image.onload = () => {
-  //       pre.isImageLoaded = true;
-  //     };
-  //     pre.image.src = Arrow;
-
-  //     return pre;
-  //   });
-  // }
-
-  // function arrowUpdate() {
-  //   if (
-  //     arrowProps.arrowX - GameSettings.ARROW_RADIUS <= 0 ||
-  //     arrowProps.arrowX + GameSettings.ARROW_RADIUS >= GameSettings.GAME_WIDTH
-  //   ) {
-  //     setArrowProps(pre => {
-  //       pre.speedX = -pre.speedX;
-  //       return pre;
-  //     });
-  //   }
-
-  //   if (
-  //     arrowProps.arrowY + GameSettings.ARROW_DIAMETER <= 0 ||
-  //     arrowProps.arrowY - GameSettings.ARROW_DIAMETER >=
-  //       GameSettings.GAME_HEIGHT
-  //   ) {
-  //     resetArrowState();
-  //   }
-
-  //   setArrowProps(pre => {
-  //     pre.arrowX += pre.speedX;
-  //     pre.arrowY += pre.speedY;
-  //     return pre;
-  //   });
-  // }
-
-  // function arrowDraw() {
-  //   if (!arrowProps.isImageLoaded) {
-  //     return;
-  //   }
-  //   gameProps.context.save(); // save current state
-  //   // gameProps.context.rotate(0.5); // rotate
-  //   gameProps.context.imageSmoothingEnabled = false;
-  //   gameProps.context.drawImage(
-  //     arrowProps.image,
-  //     arrowProps.arrowX - GameSettings.ARROW_RADIUS,
-  //     arrowProps.arrowY - GameSettings.ARROW_DIAMETER,
-  //     GameSettings.ARROW_HEIGHT,
-  //     GameSettings.ARROW_WIDTH
-  //   );
-  //   gameProps.context.restore( );
-
-  //   if (
-  //     arrowProps.isMoving &&
-  //     (Math.abs(arrowProps.arrowX - ballProps.ballX) <= 0 ||
-  //       Math.abs(arrowProps.arrowX - ballProps.ballX) <=
-  //         GameSettings.BALL_WIDTH) &&
-  //     Math.abs(arrowProps.arrowY - ballProps.ballY) <=
-  //       GameSettings.BALL_DIAMETER
-  //   ) {
-  //     setSparkProps(pre => {
-  //       pre.sparkX = ballProps.ballX;
-  //       pre.sparkY = ballProps.ballY;
-  //       return pre;
-  //     });
-  //     setBallProps(pre => {
-  //       pre.ballX = -999999999999;
-  //       pre.ballY = -999999999999;
-  //       return pre;
-  //     });
-  //     resetArrowState();
-  //     setArrowProps(pre => {
-  //       pre.isDone = true;
-  //       return pre;
-  //     });
-  //   }
-  // }
-
-  // function fire(mousePos) {
-  //   if (arrowProps.isMoving) {
-  //     return;
-  //   }
-  //   let deg = Math.atan2(
-  //     mousePos.y - arrowProps.arrowY,
-  //     mousePos.x - arrowProps.arrowX
-  //   );
-  //   setArrowProps(pre => {
-  //     pre.speedX = pre.speed * Math.cos(deg);
-  //     pre.speedY = pre.speed * Math.sin(deg);
-  //     pre.isMoving = true;
-  //     return pre;
-  //   });
-  // }
 
   // //ball props
 
@@ -597,19 +557,18 @@ function App() {
     (now: number, delta: number) => {
       cloudsUpdate(delta);
       cannonUpdate();
-      //   arrowUpdate();
+      projectileUpdate(delta);
       //   ballUpdate();
     },
-    [cannonUpdate, cloudsUpdate]
+    [cannonUpdate, cloudsUpdate, projectileUpdate]
   );
 
   const gameDraw = useCallback(() => {
     backgroundDraw();
-    cannonDraw();
-    //   arrowDraw();
+    cannonAndProjectileDraw();
     //   ballDraw();
     //   sparkDraw();
-  }, [backgroundDraw, cannonDraw]);
+  }, [backgroundDraw, cannonAndProjectileDraw]);
 
   const gameLoop = useCallback(
     (now: number) => {
@@ -628,7 +587,7 @@ function App() {
     initGameProps();
     loadCloudImages();
     loadCannonImage();
-    // loadArrowImage();
+    loadProjectileImage();
     // loadBallImage();
     // loadSparkImage();
     frameIdRef.current = requestAnimationFrame(gameLoop);
@@ -637,7 +596,13 @@ function App() {
       if (frameIdRef.current !== undefined)
         cancelAnimationFrame(frameIdRef.current);
     };
-  }, [gameLoop, initGameProps, loadCannonImage, loadCloudImages]);
+  }, [
+    gameLoop,
+    initGameProps,
+    loadCannonImage,
+    loadCloudImages,
+    loadProjectileImage,
+  ]);
 
   // canvas resize event
   useEffect(() => {
@@ -672,4 +637,18 @@ function createGameImage(): GameImage {
     x: Infinity,
     y: Infinity,
   };
+}
+
+function drawGameImage(
+  context: CanvasRenderingContext2D,
+  gameImage: GameImage
+) {
+  if (gameImage.isImageLoaded)
+    context.drawImage(
+      gameImage.image,
+      gameImage.x,
+      gameImage.y,
+      gameImage.w,
+      gameImage.h
+    );
 }
