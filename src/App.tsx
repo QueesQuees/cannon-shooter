@@ -8,6 +8,7 @@ import Cloud1 from "./cannon_shooter_assets/cloud1.png";
 import Cloud2 from "./cannon_shooter_assets/cloud2.png";
 import Cloud3 from "./cannon_shooter_assets/cloud3.png";
 import Cloud4 from "./cannon_shooter_assets/cloud4.png";
+import Spark from "./cannon_shooter_assets/spark.png";
 import * as GameSettings from "./GameConstants";
 import { randomInRange } from "./helpers";
 
@@ -243,9 +244,10 @@ function App() {
     imageFront: GameImage;
     imageBack: GameImage;
     imageWheel: GameImage;
-    isAllImageLoaded: boolean;
+    imageFireSpark: GameImage;
+    isAllImagesLoaded: boolean;
     angle: number;
-    direction: number;
+    sparkAlpha: number;
     pivot: { x: number; y: number };
     projectileBase: number;
     willHandleRotate: boolean;
@@ -253,9 +255,10 @@ function App() {
     imageFront: createGameImage(),
     imageBack: createGameImage(),
     imageWheel: createGameImage(),
-    isAllImageLoaded: false,
+    imageFireSpark: createGameImage(),
+    isAllImagesLoaded: false,
     angle: 0,
-    direction: 1,
+    sparkAlpha: 1,
     pivot: { x: 0, y: 0 },
     projectileBase: 0,
     willHandleRotate: false,
@@ -265,6 +268,7 @@ function App() {
     cannonProps.current.imageFront.image.src = CannonFront;
     cannonProps.current.imageBack.image.src = CannonBack;
     cannonProps.current.imageWheel.image.src = CannonWheel;
+    cannonProps.current.imageFireSpark.image.src = Spark;
 
     const imgLoaded = [false, false, false];
     for (const [i, imgObj] of Array.from(
@@ -277,88 +281,120 @@ function App() {
       imgObj.image.onload = () => {
         imgLoaded[i] = true;
         imgObj.isImageLoaded = true;
-        cannonProps.current.isAllImageLoaded = imgLoaded.every(i => i);
+        cannonProps.current.isAllImagesLoaded = imgLoaded.every(i => i);
         imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
         imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
       };
     }
+
+    cannonProps.current.imageFireSpark.image.onload = () => {
+      cannonProps.current.imageFireSpark.isImageLoaded = true;
+
+      cannonProps.current.imageBack.image.addEventListener("load", () => {
+        const ratio =
+          cannonProps.current.imageFireSpark.image.height /
+          cannonProps.current.imageFireSpark.image.width;
+
+        cannonProps.current.imageFireSpark.w =
+          cannonProps.current.imageBack.w * 0.85;
+        cannonProps.current.imageFireSpark.h =
+          cannonProps.current.imageFireSpark.w * ratio;
+      });
+    };
   }, []);
 
-  const cannonUpdate = useCallback(() => {
-    if (gameProps.canvas && cannonProps.current.isAllImageLoaded) {
-      for (const imgObj of [
-        cannonProps.current.imageBack,
-        cannonProps.current.imageFront,
-        cannonProps.current.imageWheel,
-      ]) {
-        imgObj.x = gameProps.canvas.width / 2 - imgObj.w / 2;
-      }
+  const cannonUpdate = useCallback(
+    (delta: number) => {
+      if (gameProps.canvas && cannonProps.current.isAllImagesLoaded) {
+        for (const imgObj of [
+          cannonProps.current.imageBack,
+          cannonProps.current.imageFront,
+          cannonProps.current.imageWheel,
+          cannonProps.current.imageFireSpark,
+        ]) {
+          imgObj.x = gameProps.canvas.width / 2 - imgObj.w / 2;
+        }
 
-      cannonProps.current.imageWheel.y =
-        gameStates.current.interactionSeparateLine -
-        cannonProps.current.imageWheel.h;
+        cannonProps.current.imageWheel.y =
+          gameStates.current.interactionSeparateLine -
+          cannonProps.current.imageWheel.h;
 
-      for (const imgObj of [
-        cannonProps.current.imageBack,
-        cannonProps.current.imageFront,
-      ]) {
-        imgObj.y = cannonProps.current.imageWheel.y - imgObj.h + 30;
-      }
+        for (const imgObj of [
+          cannonProps.current.imageBack,
+          cannonProps.current.imageFront,
+        ]) {
+          imgObj.y = cannonProps.current.imageWheel.y - imgObj.h + 30;
+        }
 
-      cannonProps.current.projectileBase = cannonProps.current.imageBack.y - 10;
+        cannonProps.current.projectileBase =
+          cannonProps.current.imageBack.y - 10;
+        cannonProps.current.imageFireSpark.y =
+          cannonProps.current.projectileBase - 10;
 
-      cannonProps.current.pivot = {
-        x:
-          cannonProps.current.imageWheel.x +
-          cannonProps.current.imageWheel.w / 2,
-        y:
-          cannonProps.current.imageWheel.y +
-          cannonProps.current.imageWheel.h / 2,
-      };
+        cannonProps.current.pivot = {
+          x:
+            cannonProps.current.imageWheel.x +
+            cannonProps.current.imageWheel.w / 2,
+          y:
+            cannonProps.current.imageWheel.y +
+            cannonProps.current.imageWheel.h / 2,
+        };
 
-      if (mouseProps.current.pressed) {
-        if (mouseProps.current.currentPos.y > cannonProps.current.pivot.y) {
-          // if mouse only moves under the pivot, don't do anything
-          if (
-            !cannonProps.current.willHandleRotate &&
-            mouseProps.current.startPos.y > cannonProps.current.pivot.y
-          ) {
-            cannonProps.current.willHandleRotate = false;
+        if (mouseProps.current.pressed) {
+          if (mouseProps.current.currentPos.y > cannonProps.current.pivot.y) {
+            // if mouse only moves under the pivot, don't do anything
+            if (
+              !cannonProps.current.willHandleRotate &&
+              mouseProps.current.startPos.y > cannonProps.current.pivot.y
+            ) {
+              cannonProps.current.willHandleRotate = false;
+            }
+
+            gameStates.current.willFire = false;
+          } else {
+            cannonProps.current.willHandleRotate = true;
+            gameStates.current.willFire = true;
+          }
+        } else {
+          cannonProps.current.willHandleRotate = false;
+        }
+
+        if (cannonProps.current.willHandleRotate) {
+          const { x: x1, y: y1 } = cannonProps.current.pivot;
+          let { x: x2, y: y2 } = mouseProps.current.currentPos;
+
+          // reverse the mouse y position if it's below the pivot
+          if (y1 < y2) {
+            y2 = y1 - (y2 - y1);
           }
 
-          gameStates.current.willFire = false;
-        } else {
-          cannonProps.current.willHandleRotate = true;
-          gameStates.current.willFire = true;
-        }
-      } else {
-        cannonProps.current.willHandleRotate = false;
-      }
+          let newAngle = -Math.atan((x2 - x1) / (y2 - y1));
+          if (Math.abs(newAngle) >= GameSettings.CANNON_ROTATE_ANGLE_LIMIT)
+            newAngle =
+              GameSettings.CANNON_ROTATE_ANGLE_LIMIT * Math.sign(newAngle);
 
-      if (cannonProps.current.willHandleRotate) {
-        const { x: x1, y: y1 } = cannonProps.current.pivot;
-        let { x: x2, y: y2 } = mouseProps.current.currentPos;
-
-        // reverse the mouse y position if it's below the pivot
-        if (y1 < y2) {
-          y2 = y1 - (y2 - y1);
+          cannonProps.current.angle = newAngle;
         }
 
-        let newAngle = -Math.atan((x2 - x1) / (y2 - y1));
-        if (Math.abs(newAngle) >= GameSettings.CANNON_ROTATE_ANGLE_LIMIT)
-          newAngle =
-            GameSettings.CANNON_ROTATE_ANGLE_LIMIT * Math.sign(newAngle);
-
-        cannonProps.current.angle = newAngle;
+        if (gameStates.current.fired) {
+          if (cannonProps.current.sparkAlpha !== 0) {
+            cannonProps.current.sparkAlpha = Math.max(
+              cannonProps.current.sparkAlpha -
+                delta / (GameSettings.FIRE_SPARK_FADE_TIME * 1000),
+              0
+            );
+          }
+        }
       }
-    }
-  }, [gameProps.canvas]);
+    },
+    [gameProps.canvas]
+  );
 
   const cannonAndProjectileDraw = useCallback(() => {
     if (
       gameProps.context &&
       gameProps.canvas &&
-      cannonProps.current.isAllImageLoaded
+      cannonProps.current.isAllImagesLoaded
     ) {
       gameProps.context.save();
 
@@ -401,6 +437,12 @@ function App() {
         );
 
         drawGameImage(gameProps.context, projectileProps.current);
+
+        gameProps.context.restore();
+        gameProps.context.save();
+
+        gameProps.context.globalAlpha = cannonProps.current.sparkAlpha;
+        drawGameImage(gameProps.context, cannonProps.current.imageFireSpark);
 
         gameProps.context.restore();
       } else {
@@ -587,7 +629,7 @@ function App() {
   const gameUpdate = useCallback(
     (now: number, delta: number) => {
       cloudsUpdate(delta);
-      cannonUpdate();
+      cannonUpdate(delta);
       projectileUpdate(delta);
       //   ballUpdate();
     },
