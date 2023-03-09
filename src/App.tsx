@@ -9,17 +9,16 @@ import Cloud2 from "./cannon_shooter_assets/cloud2.png";
 import Cloud3 from "./cannon_shooter_assets/cloud3.png";
 import Cloud4 from "./cannon_shooter_assets/cloud4.png";
 import Spark from "./cannon_shooter_assets/spark.png";
+import CannonFireSound from "./cannon_shooter_sounds/cannon_fire.wav";
 import * as GameSettings from "./GameConstants";
-import { randomInRange } from "./helpers";
-
-type GameImage = {
-  image: HTMLImageElement;
-  isImageLoaded: boolean;
-  w: number;
-  h: number;
-  x: number;
-  y: number;
-};
+import {
+  createGameImage,
+  createSound,
+  drawGameImage,
+  GameImage,
+  GameSound,
+  randomInRange,
+} from "./helpers";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -207,6 +206,8 @@ function App() {
           projectileProps.current.rotateDirection = Math.sign(
             cannonProps.current.angle
           );
+
+          cannonProps.current.cannonFireSound.play();
         }
 
         if (gameStates.current.fired) {
@@ -245,6 +246,7 @@ function App() {
     imageBack: GameImage;
     imageWheel: GameImage;
     imageFireSpark: GameImage;
+    cannonFireSound: GameSound;
     isAllImagesLoaded: boolean;
     angle: number;
     sparkAlpha: number;
@@ -256,6 +258,7 @@ function App() {
     imageBack: createGameImage(),
     imageWheel: createGameImage(),
     imageFireSpark: createGameImage(),
+    cannonFireSound: createSound(CannonFireSound),
     isAllImagesLoaded: false,
     angle: 0,
     sparkAlpha: 1,
@@ -700,28 +703,3 @@ function App() {
 }
 
 export default App;
-
-function createGameImage(): GameImage {
-  return {
-    image: new Image(),
-    isImageLoaded: false,
-    w: 0,
-    h: 0,
-    x: Infinity,
-    y: Infinity,
-  };
-}
-
-function drawGameImage(
-  context: CanvasRenderingContext2D,
-  gameImage: GameImage
-) {
-  if (gameImage.isImageLoaded)
-    context.drawImage(
-      gameImage.image,
-      gameImage.x,
-      gameImage.y,
-      gameImage.w,
-      gameImage.h
-    );
-}
