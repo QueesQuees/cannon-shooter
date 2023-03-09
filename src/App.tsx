@@ -151,7 +151,7 @@ function App() {
     speedX: 0,
     speedY: 0,
     angle: 0,
-    angleDirection: 1,
+    rotateDirection: 1,
   });
 
   const loadProjectileImage = useCallback(() => {
@@ -203,7 +203,7 @@ function App() {
             cannonProps.current.pivot.y;
 
           projectileProps.current.angle = cannonProps.current.angle;
-          projectileProps.current.angleDirection = Math.sign(
+          projectileProps.current.rotateDirection = Math.sign(
             cannonProps.current.angle
           );
         }
@@ -216,7 +216,7 @@ function App() {
             hypotenuse * projectileProps.current.speedY;
 
           projectileProps.current.angle +=
-            (projectileProps.current.angleDirection *
+            (projectileProps.current.rotateDirection *
               (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
             1000;
         } else {
