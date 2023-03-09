@@ -209,16 +209,25 @@ function App() {
         }
 
         if (gameStates.current.fired) {
-          const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
-          projectileProps.current.x +=
-            hypotenuse * projectileProps.current.speedX;
-          projectileProps.current.y +=
-            hypotenuse * projectileProps.current.speedY;
+          if (
+            projectileProps.current.x <= gameProps.canvas.width &&
+            projectileProps.current.y <= gameProps.canvas.height &&
+            projectileProps.current.x + projectileProps.current.w >= 0 &&
+            projectileProps.current.y + projectileProps.current.h >= 0
+          ) {
+            const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
+            projectileProps.current.x +=
+              hypotenuse * projectileProps.current.speedX;
+            projectileProps.current.y +=
+              hypotenuse * projectileProps.current.speedY;
 
-          projectileProps.current.angle +=
-            (projectileProps.current.rotateDirection *
-              (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
-            1000;
+            projectileProps.current.angle +=
+              (projectileProps.current.rotateDirection *
+                (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
+              1000;
+          } else {
+            //TODO: fail event
+          }
         } else {
           projectileProps.current.x =
             gameProps.canvas.width / 2 - projectileProps.current.w / 2;
