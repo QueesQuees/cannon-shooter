@@ -151,6 +151,7 @@ function App() {
     speedX: 0,
     speedY: 0,
     angle: 0,
+    angleDirection: 1,
   });
 
   const loadProjectileImage = useCallback(() => {
@@ -189,7 +190,7 @@ function App() {
             cannonProps.current.pivot.y;
 
           projectileProps.current.speedX = sina;
-          projectileProps.current.speedY = cosa;
+          projectileProps.current.speedY = -cosa;
           projectileProps.current.x =
             x * cosa -
             y * sina -
@@ -200,14 +201,24 @@ function App() {
             y * cosa -
             projectileProps.current.h / 2 +
             cannonProps.current.pivot.y;
+
+          projectileProps.current.angle = cannonProps.current.angle;
+          projectileProps.current.angleDirection = Math.sign(
+            cannonProps.current.angle
+          );
         }
 
         if (gameStates.current.fired) {
           const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
           projectileProps.current.x +=
             hypotenuse * projectileProps.current.speedX;
-          projectileProps.current.y -=
+          projectileProps.current.y +=
             hypotenuse * projectileProps.current.speedY;
+
+          projectileProps.current.angle +=
+            (projectileProps.current.angleDirection *
+              (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
+            1000;
         } else {
           projectileProps.current.x =
             gameProps.canvas.width / 2 - projectileProps.current.w / 2;
@@ -367,6 +378,17 @@ function App() {
         gameProps.context.translate(
           -cannonProps.current.pivot.x,
           -cannonProps.current.pivot.y
+        );
+
+        // make the projectile rolls around
+        gameProps.context.translate(
+          projectileProps.current.x + projectileProps.current.w / 2,
+          projectileProps.current.y + projectileProps.current.h / 2
+        );
+        gameProps.context.rotate(projectileProps.current.angle);
+        gameProps.context.translate(
+          -(projectileProps.current.x + projectileProps.current.w / 2),
+          -(projectileProps.current.y + projectileProps.current.h / 2)
         );
 
         drawGameImage(gameProps.context, projectileProps.current);

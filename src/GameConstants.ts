@@ -19,3 +19,4 @@ export const CANNON_SCALE = 0.5;
 export const CANNON_ROTATE_ANGLE_LIMIT = degToRad(50); // deg
 export const PROJECTILE_SCALE = CANNON_SCALE;
 export const PROJECTILE_SPEED = 800; // px/s
+export const PROJECTILE_ROTATE_SPEED = degToRad(720); // deg/s
