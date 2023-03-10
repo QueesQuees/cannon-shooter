@@ -563,7 +563,7 @@ function App() {
               -item.direction *
               (offset + randomInRange(ballXRange[0], ballXRange[1]));
 
-            const ballRow = randomInRangeInt(0, 3);
+            const ballRow = randomInRangeInt(0, GameSettings.BALL_ROW - 1);
             item.y =
               GameSettings.BALL_ROW_GAP + ballRow * GameSettings.BALL_START_Y;
 

@@ -5,6 +5,7 @@ export const BALL_SPEED_RANGE = [200, 500]; // px/s
 export const BALL_START_X_INIT_RANGE = [1000, 3000]; // px
 export const BALL_START_X_RANGE = [5000, 10000]; // px
 export const BALL_START_Y = 100; // px
+export const BALL_ROW = 4; // row
 export const BALL_ROW_GAP = 50; // px
 
 export const BALL_RADIUS = 50;
