@@ -1,19 +1,19 @@
 import { degToRad } from "./helpers";
 
-// export const ARROW_START_X = 200;
-// export const ARROW_START_Y = 620;
-// export const ARROW_RADIUS = 20;
-// export const ARROW_DIAMETER = 70;
-// export const ARROW_WIDTH = 140;
-// export const ARROW_HEIGHT = 40;
-export const BALL_SPEED = 3;
-export const BALL_START_Y = 0;
+export const BALL_SIZE = 50; // px
+export const BALL_SPEED_RANGE = [200, 500]; // px/s
+export const BALL_START_X_INIT_RANGE = [1000, 3000]; // px
+export const BALL_START_X_RANGE = [5000, 10000]; // px
+export const BALL_START_Y = 100; // px
+export const BALL_ROW_GAP = 50; // px
+
 export const BALL_RADIUS = 50;
 export const BALL_DIAMETER = 20;
 export const BALL_WIDTH = 100;
 export const BALL_HEIGHT = 40;
 export const SPARK_START_Y = -999;
 export const SPARK_START_X = -999;
+
 export const CLOUD_SPEED_RANGE = [20, 100]; // px/s
 export const CANNON_SCALE = 0.5;
 export const CANNON_ROTATE_ANGLE_LIMIT = degToRad(50); // deg
