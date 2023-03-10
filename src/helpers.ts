@@ -66,3 +66,24 @@ export function createSound(src: string): GameSound {
 
   return sound;
 }
+
+export function linearInterpolateAnimation<
+  T extends Record<K, number>,
+  K extends string
+>(
+  animateVal: K,
+  currentState: T,
+  keyframes: T[],
+  deltaTime: number,
+  duration: number
+) {
+  const deltaVal = keyframes[1][animateVal] - keyframes[0][animateVal];
+  const clampFunc = deltaVal < 0 ? Math.max : Math.min;
+
+  currentState[animateVal] = clampFunc(
+    currentState[animateVal] + deltaTime * (deltaVal / duration),
+    keyframes[1][animateVal]
+  ) as T[K];
+
+  return currentState[animateVal];
+}

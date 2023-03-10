@@ -20,4 +20,8 @@ export const CANNON_ROTATE_ANGLE_LIMIT = degToRad(50); // deg
 export const PROJECTILE_SCALE = CANNON_SCALE;
 export const PROJECTILE_SPEED = 800; // px/s
 export const PROJECTILE_ROTATE_SPEED = degToRad(720); // deg/s
-export const FIRE_SPARK_FADE_TIME = 0.25; // s
+export const FIRE_SPARK_FADE_TIME = 0.15; // s
+export const FIRE_SPARK_FADE_ANIMATION_KEYFRAMES = [
+  { alpha: 1, offset: 0, scale: 1 },
+  { alpha: 0, offset: -20, scale: 1.3 },
+];

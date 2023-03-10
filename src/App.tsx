@@ -16,7 +16,7 @@ import {
   createSound,
   drawGameImage,
   GameImage,
-  GameSound,
+  linearInterpolateAnimation,
   randomInRange,
 } from "./helpers";
 
@@ -241,19 +241,7 @@ function App() {
   );
 
   //cannon
-  const cannonProps = useRef<{
-    imageFront: GameImage;
-    imageBack: GameImage;
-    imageWheel: GameImage;
-    imageFireSpark: GameImage;
-    cannonFireSound: GameSound;
-    isAllImagesLoaded: boolean;
-    angle: number;
-    sparkAlpha: number;
-    pivot: { x: number; y: number };
-    projectileBase: number;
-    willHandleRotate: boolean;
-  }>({
+  const cannonProps = useRef({
     imageFront: createGameImage(),
     imageBack: createGameImage(),
     imageWheel: createGameImage(),
@@ -261,7 +249,7 @@ function App() {
     cannonFireSound: createSound(CannonFireSound),
     isAllImagesLoaded: false,
     angle: 0,
-    sparkAlpha: 1,
+    sparkAnimation: GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[0],
     pivot: { x: 0, y: 0 },
     projectileBase: 0,
     willHandleRotate: false,
@@ -380,12 +368,53 @@ function App() {
         }
 
         if (gameStates.current.fired) {
-          if (cannonProps.current.sparkAlpha !== 0) {
-            cannonProps.current.sparkAlpha = Math.max(
-              cannonProps.current.sparkAlpha -
-                delta / (GameSettings.FIRE_SPARK_FADE_TIME * 1000),
-              0
+          if (
+            cannonProps.current.sparkAnimation.alpha !==
+            GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].alpha
+          ) {
+            linearInterpolateAnimation(
+              "alpha",
+              cannonProps.current.sparkAnimation,
+              GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES,
+              delta,
+              GameSettings.FIRE_SPARK_FADE_TIME * 1000
             );
+          }
+
+          if (
+            cannonProps.current.sparkAnimation.offset !==
+            GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset
+          ) {
+            linearInterpolateAnimation(
+              "offset",
+              cannonProps.current.sparkAnimation,
+              GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES,
+              delta,
+              GameSettings.FIRE_SPARK_FADE_TIME * 1000
+            );
+
+            cannonProps.current.imageFireSpark.y +=
+              cannonProps.current.sparkAnimation.offset;
+          }
+
+          if (
+            cannonProps.current.sparkAnimation.scale !==
+            GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].scale
+          ) {
+            const oldScale = cannonProps.current.sparkAnimation.scale;
+
+            linearInterpolateAnimation(
+              "scale",
+              cannonProps.current.sparkAnimation,
+              GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES,
+              delta,
+              GameSettings.FIRE_SPARK_FADE_TIME * 1000
+            );
+
+            cannonProps.current.imageFireSpark.w *=
+              cannonProps.current.sparkAnimation.scale / oldScale;
+            cannonProps.current.imageFireSpark.h *=
+              cannonProps.current.sparkAnimation.scale / oldScale;
           }
         }
       }
@@ -444,7 +473,8 @@ function App() {
         gameProps.context.restore();
         gameProps.context.save();
 
-        gameProps.context.globalAlpha = cannonProps.current.sparkAlpha;
+        gameProps.context.globalAlpha =
+          cannonProps.current.sparkAnimation.alpha;
         drawGameImage(gameProps.context, cannonProps.current.imageFireSpark);
 
         gameProps.context.restore();
