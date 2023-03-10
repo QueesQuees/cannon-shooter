@@ -1,6 +1,5 @@
 export type GameImage = {
   image: HTMLImageElement;
-  isImageLoaded: boolean;
   w: number;
   h: number;
   x: number;
@@ -34,7 +33,6 @@ export function randomInRange(min: number, max: number): number {
 export function createGameImage(): GameImage {
   return {
     image: new Image(),
-    isImageLoaded: false,
     w: 0,
     h: 0,
     x: Infinity,
@@ -46,14 +44,13 @@ export function drawGameImage(
   context: CanvasRenderingContext2D,
   gameImage: GameImage
 ) {
-  if (gameImage.isImageLoaded)
-    context.drawImage(
-      gameImage.image,
-      gameImage.x,
-      gameImage.y,
-      gameImage.w,
-      gameImage.h
-    );
+  context.drawImage(
+    gameImage.image,
+    gameImage.x,
+    gameImage.y,
+    gameImage.w,
+    gameImage.h
+  );
 }
 
 export function createSound(src: string): GameSound {
