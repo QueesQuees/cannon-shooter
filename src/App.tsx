@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import Ball1 from "./cannon_shooter_assets/ball1.png";
 import Ball2 from "./cannon_shooter_assets/ball2.png";
@@ -45,6 +45,7 @@ function App() {
     interactionSeparateLine: 0,
     willFire: false,
     fired: false,
+    fly: false,
   });
 
   const mouseProps = useRef<{
@@ -159,27 +160,28 @@ function App() {
     speedY: 0,
     angle: 0,
     rotateDirection: 1,
-    crashWith: function (otherobj: GameImage) {
-      var myleft = this.x;
-      var myright = this.x + this.width;
-      var mytop = this.y;
-      var mybottom = this.y + this.height;
-      var otherleft = otherobj.x;
-      var otherright = otherobj.x + otherobj.w;
-      var othertop = otherobj.y;
-      var otherbottom = otherobj.y + otherobj.h;
-      var crash = false;
-      // console.log(mytop , otherbottom , mytop , othertop , myleft , otherleft , myleft , otherright)
+    // Collide
+    hanleCollide: function (otherobj: GameImage) {
+      const myleft = this.x;
+      const myright = this.x + this.width;
+      const mytop = this.y;
+      const mybottom = this.y + this.height;
+      const otherleft = otherobj.x;
+      const otherright = otherobj.x + otherobj.w;
+      const othertop = otherobj.y;
+      const otherbottom = otherobj.y + otherobj.h;
+      let collide = false;
       if (
         mytop <= otherbottom &&
         mytop >= othertop &&
         myleft >= otherleft &&
         myleft <= otherright
       ) {
-        crash = true;
+        collide = true;
       }
-      return crash;
+      return collide;
     },
+    collide: false,
   });
 
   const loadProjectileImage = useCallback(() => {
@@ -194,20 +196,44 @@ function App() {
     projectileProps.current.image.src = Projectile;
   }, []);
 
-  // Xử lý va chạm
-  const projectionCrash = useCallback(() => {
-    if (gameStates.current.fired) {
-      for (let i = 0; i < ballProps.current.balls.length; i++) {
-        if (projectileProps.current.crashWith(ballProps.current.balls[i])) {
-          loadProjectileImage()
-          return;
-        }
-      }
-    }
-  }, [loadProjectileImage]);
-
   const projectileUpdate = useCallback(
     (delta: number) => {
+      // Xử lý va chạm và set lại bóng
+      if (gameStates.current.fired) {
+        for (let i = 0; i < ballProps.current.balls.length; i++) {
+          if (
+            projectileProps.current.hanleCollide(ballProps.current.balls[i])
+          ) {
+            // current ball
+            let item = ballProps.current.balls[i];
+            let ballXRange = GameSettings.BALL_START_X_RANGE;
+            if (ballXRange !== null && gameProps.canvas) {
+              item.direction = randomInRangeInt(0, 1) || -1;
+              const offset = item.direction === 1 ? 0 : gameProps.canvas.width;
+
+              item.x =
+                -item.direction *
+                (offset + randomInRange(ballXRange[0], ballXRange[1]));
+
+              const ballRow = randomInRangeInt(0, GameSettings.BALL_ROW - 1);
+              item.y =
+                GameSettings.BALL_ROW_GAP + ballRow * GameSettings.BALL_START_Y;
+
+              item.speed = randomInRange(
+                GameSettings.BALL_SPEED_RANGE[0],
+                GameSettings.BALL_SPEED_RANGE[1]
+              );
+            }
+
+            item.x += (item.direction * (item.speed * delta)) / 1000;
+
+            // Conllide
+            projectileProps.current.collide = true;
+            console.log("cham");
+            break;
+          }
+        }
+      }
       if (gameProps.canvas) {
         if (
           !gameStates.current.fired &&
@@ -255,34 +281,51 @@ function App() {
             projectileProps.current.x <= gameProps.canvas.width &&
             projectileProps.current.y <= gameProps.canvas.height &&
             projectileProps.current.x + projectileProps.current.w >= 0 &&
-            projectileProps.current.y + projectileProps.current.h >= 0
+            projectileProps.current.y + projectileProps.current.h >= 0 &&
+            gameStates.current.fly &&
+            !projectileProps.current.collide
           ) {
+
+            // Xử  lý đường đạn khi bay
             const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
             projectileProps.current.x +=
               hypotenuse * projectileProps.current.speedX;
             projectileProps.current.y +=
               hypotenuse * projectileProps.current.speedY;
 
-            // projectileProps.current.angle +=
-            //   (projectileProps.current.rotateDirection *
-            //     (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
-            //   1000;
+            // Hiệu úng đạn quay tròn
+            projectileProps.current.angle +=
+              (projectileProps.current.rotateDirection *
+                (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
+              1000;
           } else {
             //TODO: fail event
+            // khỏi tạo đạn về vị trí ban đầu
+            gameStates.current.fired = false;
+            gameStates.current.fly = false;
+            projectileProps.current.collide = false;
+            cannonProps.current.sparkAnimation = {
+              ...GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[0],
+            };
+            // khỏi tạo lại hiệu úng nổ
+            const ratio =
+              cannonProps.current.imageFireSpark.image.height /
+              cannonProps.current.imageFireSpark.image.width;
+            cannonProps.current.imageFireSpark.w =
+              cannonProps.current.imageBack.w * 0.85;
+            cannonProps.current.imageFireSpark.h =
+              cannonProps.current.imageFireSpark.w * ratio;
+
+            projectileProps.current.x =
+              gameProps.canvas.width / 2 - projectileProps.current.w / 2;
+            projectileProps.current.y = cannonProps.current.projectileBase;
           }
         } else {
+          projectileProps.current.collide = false;
           projectileProps.current.x =
             gameProps.canvas.width / 2 - projectileProps.current.w / 2;
           projectileProps.current.y = cannonProps.current.projectileBase;
         }
-
-        // if (!gameStates.current.fired) {
-        //   projectileProps.current.w =
-        //     projectileProps.current.image.width * GameSettings.PROJECTILE_SCALE;
-        //   projectileProps.current.h =
-        //     projectileProps.current.image.height *
-        //     GameSettings.PROJECTILE_SCALE;
-        // }
       }
     },
     [gameProps.canvas]
@@ -297,7 +340,7 @@ function App() {
     cannonFireSound: createSound(CannonFireSound),
     isAllImagesLoaded: false,
     angle: 0,
-    sparkAnimation: GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[0],
+    sparkAnimation: { ...GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[0] },
     pivot: { x: 0, y: 0 },
     projectileBase: 0,
     willHandleRotate: false,
@@ -325,7 +368,6 @@ function App() {
         imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
       };
     }
-
     cannonProps.current.imageFireSpark.image.onload = () => {
       cannonProps.current.imageFireSpark.isImageLoaded = true;
 
@@ -393,6 +435,7 @@ function App() {
           } else {
             cannonProps.current.willHandleRotate = true;
             gameStates.current.willFire = true;
+            gameStates.current.fly = true;
           }
         } else {
           cannonProps.current.willHandleRotate = false;
@@ -415,6 +458,7 @@ function App() {
           cannonProps.current.angle = newAngle;
         }
 
+        // start Spark Animation
         if (gameStates.current.fired) {
           if (
             cannonProps.current.sparkAnimation.alpha !==
@@ -465,6 +509,7 @@ function App() {
               cannonProps.current.sparkAnimation.scale / oldScale;
           }
         }
+        // End Spark Animation
       }
     },
     [gameProps.canvas]
@@ -552,7 +597,25 @@ function App() {
   });
 
   const loadBallImages = useCallback(() => {
+    if (ballProps.current.balls.length > 7) {
+    }
     ballProps.current.balls = [
+      Ball1,
+      Ball2,
+      Ball3,
+      Ball4,
+      Ball1,
+      Ball2,
+      Ball3,
+      Ball4,
+      Ball1,
+      Ball2,
+      Ball3,
+      Ball4,
+      Ball1,
+      Ball2,
+      Ball3,
+      Ball4,
       Ball1,
       Ball2,
       Ball3,
@@ -805,13 +868,16 @@ function App() {
 
   const gameUpdate = useCallback(
     (now: number, delta: number) => {
+      // if (projectileProps.current.collide) {
+      //   // return;
+      // } else {
       cloudsUpdate(delta);
       ballsUpdate(delta);
       cannonUpdate(delta);
       projectileUpdate(delta);
-      projectionCrash();
+      // }
     },
-    [ballsUpdate, cannonUpdate, cloudsUpdate, projectileUpdate, projectionCrash]
+    [ballsUpdate, cannonUpdate, cloudsUpdate, projectileUpdate]
   );
 
   const gameDraw = useCallback(() => {
@@ -840,7 +906,6 @@ function App() {
     loadCannonImage();
     loadProjectileImage();
     loadBallImages();
-    projectionCrash();
     // loadSparkImage();
     frameIdRef.current = requestAnimationFrame(gameLoop);
 
@@ -855,7 +920,6 @@ function App() {
     loadCannonImage,
     loadCloudImages,
     loadProjectileImage,
-    projectionCrash,
   ]);
 
   // canvas resize event
@@ -868,6 +932,7 @@ function App() {
           gameProps.canvas.height * 0.85;
       }
     };
+
     window.addEventListener("resize", listener);
 
     return () => window.removeEventListener("resize", listener);
