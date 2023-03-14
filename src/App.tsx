@@ -61,7 +61,7 @@ function App() {
   >([]);
 
   const loadCloudImages = useCallback(() => {
-    cloudProps.current = [Cloud1, Cloud2, Cloud3, Cloud4].map(img => {
+    cloudProps.current = [Cloud1, Cloud2, Cloud3, Cloud4].map((img) => {
       const res = {
         ...createGameImage(),
         speed: 0,
@@ -77,7 +77,7 @@ function App() {
 
   const cloudsUpdate = useCallback(
     (delta: number) => {
-      cloudProps.current.forEach(item => {
+      cloudProps.current.forEach((item) => {
         if (gameProps.canvas && item.isImageLoaded) {
           if (item.x === Infinity || item.y === Infinity) {
             const scale = randomInRange(0.5, 1);
@@ -117,7 +117,7 @@ function App() {
     if (gameProps.context && gameProps.canvas) {
       gameProps.context.save();
 
-      cloudProps.current.forEach(item => {
+      cloudProps.current.forEach((item) => {
         if (gameProps.context) {
           drawGameImage(gameProps.context, item);
         }
@@ -159,6 +159,27 @@ function App() {
     speedY: 0,
     angle: 0,
     rotateDirection: 1,
+    crashWith: function (otherobj: GameImage) {
+      var myleft = this.x;
+      var myright = this.x + this.width;
+      var mytop = this.y;
+      var mybottom = this.y + this.height;
+      var otherleft = otherobj.x;
+      var otherright = otherobj.x + otherobj.w;
+      var othertop = otherobj.y;
+      var otherbottom = otherobj.y + otherobj.h;
+      var crash = false;
+      // console.log(mytop , otherbottom , mytop , othertop , myleft , otherleft , myleft , otherright)
+      if (
+        mytop <= otherbottom &&
+        mytop >= othertop &&
+        myleft >= otherleft &&
+        myleft <= otherright
+      ) {
+        crash = true;
+      }
+      return crash;
+    },
   });
 
   const loadProjectileImage = useCallback(() => {
@@ -172,6 +193,18 @@ function App() {
     };
     projectileProps.current.image.src = Projectile;
   }, []);
+
+  // Xử lý va chạm
+  const projectionCrash = useCallback(() => {
+    if (gameStates.current.fired) {
+      for (let i = 0; i < ballProps.current.balls.length; i++) {
+        if (projectileProps.current.crashWith(ballProps.current.balls[i])) {
+          loadProjectileImage()
+          return;
+        }
+      }
+    }
+  }, [loadProjectileImage]);
 
   const projectileUpdate = useCallback(
     (delta: number) => {
@@ -230,10 +263,10 @@ function App() {
             projectileProps.current.y +=
               hypotenuse * projectileProps.current.speedY;
 
-            projectileProps.current.angle +=
-              (projectileProps.current.rotateDirection *
-                (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
-              1000;
+            // projectileProps.current.angle +=
+            //   (projectileProps.current.rotateDirection *
+            //     (delta * GameSettings.PROJECTILE_ROTATE_SPEED)) /
+            //   1000;
           } else {
             //TODO: fail event
           }
@@ -242,6 +275,14 @@ function App() {
             gameProps.canvas.width / 2 - projectileProps.current.w / 2;
           projectileProps.current.y = cannonProps.current.projectileBase;
         }
+
+        // if (!gameStates.current.fired) {
+        //   projectileProps.current.w =
+        //     projectileProps.current.image.width * GameSettings.PROJECTILE_SCALE;
+        //   projectileProps.current.h =
+        //     projectileProps.current.image.height *
+        //     GameSettings.PROJECTILE_SCALE;
+        // }
       }
     },
     [gameProps.canvas]
@@ -279,7 +320,7 @@ function App() {
       imgObj.image.onload = () => {
         imgLoaded[i] = true;
         imgObj.isImageLoaded = true;
-        cannonProps.current.isAllImagesLoaded = imgLoaded.every(i => i);
+        cannonProps.current.isAllImagesLoaded = imgLoaded.every((i) => i);
         imgObj.w = imgObj.image.width * GameSettings.CANNON_SCALE;
         imgObj.h = imgObj.image.height * GameSettings.CANNON_SCALE;
       };
@@ -520,7 +561,7 @@ function App() {
       Ball2,
       Ball3,
       Ball4,
-    ].map(img => {
+    ].map((img) => {
       const res = {
         ...createGameImage(),
         speed: 0,
@@ -542,7 +583,7 @@ function App() {
 
   const ballsUpdate = useCallback(
     (delta: number) => {
-      ballProps.current.balls.forEach(item => {
+      ballProps.current.balls.forEach((item) => {
         if (gameProps.canvas) {
           let ballXRange = null;
 
@@ -584,7 +625,7 @@ function App() {
     if (gameProps.context && gameProps.canvas) {
       gameProps.context.save();
 
-      ballProps.current.balls.forEach(item => {
+      ballProps.current.balls.forEach((item) => {
         if (gameProps.context) {
           drawGameImage(gameProps.context, item);
         }
@@ -747,7 +788,7 @@ function App() {
     if (canvasRef.current) {
       let canvas = canvasRef.current;
       let context = canvas.getContext("2d");
-      setGameProps(pre => {
+      setGameProps((pre) => {
         pre.canvas = canvas;
         pre.context = context;
         return pre;
@@ -768,8 +809,9 @@ function App() {
       ballsUpdate(delta);
       cannonUpdate(delta);
       projectileUpdate(delta);
+      projectionCrash();
     },
-    [ballsUpdate, cannonUpdate, cloudsUpdate, projectileUpdate]
+    [ballsUpdate, cannonUpdate, cloudsUpdate, projectileUpdate, projectionCrash]
   );
 
   const gameDraw = useCallback(() => {
@@ -798,6 +840,7 @@ function App() {
     loadCannonImage();
     loadProjectileImage();
     loadBallImages();
+    projectionCrash();
     // loadSparkImage();
     frameIdRef.current = requestAnimationFrame(gameLoop);
 
@@ -812,6 +855,7 @@ function App() {
     loadCannonImage,
     loadCloudImages,
     loadProjectileImage,
+    projectionCrash,
   ]);
 
   // canvas resize event
