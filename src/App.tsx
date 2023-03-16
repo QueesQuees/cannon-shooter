@@ -15,6 +15,7 @@ import Cloud4 from "./cannon_shooter_assets/cloud4.png";
 import LeftWing from "./cannon_shooter_assets/left_wing.png";
 import RightWing from "./cannon_shooter_assets/right_wing.png";
 import Spark from "./cannon_shooter_assets/spark.png";
+import GiftBox from "./cannon_shooter_assets/giftBox.jpg";
 import CannonFireSound from "./cannon_shooter_sounds/cannon_fire.wav";
 import * as GameSettings from "./GameConstants";
 import {
@@ -23,6 +24,7 @@ import {
   drawGameImage,
   GameImage,
   linearInterpolateAnimation,
+  // moveCoordinatesAnimation,
   randomInRange,
   randomInRangeInt,
 } from "./helpers";
@@ -46,6 +48,7 @@ function App() {
     willFire: false,
     fired: false,
     fly: false,
+    gameStop: false,
   });
 
   const mouseProps = useRef<{
@@ -204,30 +207,45 @@ function App() {
           if (
             projectileProps.current.hanleCollide(ballProps.current.balls[i])
           ) {
+            // gameStates.current.gameStop = true;
             // current ball
             let item = ballProps.current.balls[i];
+            const itemXCurrent = item.x;
+            const itemYCurrent = item.y;
+
             let ballXRange = GameSettings.BALL_START_X_RANGE;
-            if (ballXRange !== null && gameProps.canvas) {
+
+            // khởi tạo lại vị trí ball và wing sau khi va chạm
+            // initialization place of the ball and the wing after collide
+            if (
+              ballXRange !== null &&
+              gameProps.canvas &&
+              !gameStates.current.gameStop
+            ) {
               item.direction = randomInRangeInt(0, 1) || -1;
               const offset = item.direction === 1 ? 0 : gameProps.canvas.width;
 
               item.x =
                 -item.direction *
                 (offset + randomInRange(ballXRange[0], ballXRange[1]));
-
+              item.leftWingImage.x = item.x - GameSettings.WINGS_SIZE;
+              item.rightWingImage.x = item.x + GameSettings.BALL_SIZE;
               const ballRow = randomInRangeInt(0, GameSettings.BALL_ROW - 1);
               item.y =
                 GameSettings.BALL_ROW_GAP + ballRow * GameSettings.BALL_START_Y;
-
+              item.leftWingImage.y = item.y;
+              item.rightWingImage.y = item.y;
               item.speed = randomInRange(
                 GameSettings.BALL_SPEED_RANGE[0],
                 GameSettings.BALL_SPEED_RANGE[1]
               );
             }
-
             item.x += (item.direction * (item.speed * delta)) / 1000;
+            // Initiate explosion effect after impact
+            item.imageGiftBox.x = itemXCurrent;
+            item.imageGiftBox.y = itemYCurrent;
 
-            // Conllide
+            // Log Conllide
             projectileProps.current.collide = true;
             console.log("cham");
             break;
@@ -238,10 +256,10 @@ function App() {
         if (
           !gameStates.current.fired &&
           gameStates.current.willFire &&
-          !mouseProps.current.pressed
+          !mouseProps.current.pressed &&
+          !gameStates.current.gameStop
         ) {
           gameStates.current.fired = true;
-
           // calculate the true position of the projectile,
           // because before being fired, the projectile is rotated by the canvas API, so its position isn't changed
           const sina = Math.sin(cannonProps.current.angle);
@@ -285,7 +303,6 @@ function App() {
             gameStates.current.fly &&
             !projectileProps.current.collide
           ) {
-
             // Xử  lý đường đạn khi bay
             const hypotenuse = (delta * GameSettings.PROJECTILE_SPEED) / 1000;
             projectileProps.current.x +=
@@ -484,7 +501,7 @@ function App() {
               delta,
               GameSettings.FIRE_SPARK_FADE_TIME * 1000
             );
-
+            console.log(delta, cannonProps.current.sparkAnimation.offset);
             cannonProps.current.imageFireSpark.y +=
               cannonProps.current.sparkAnimation.offset;
           }
@@ -502,11 +519,9 @@ function App() {
               delta,
               GameSettings.FIRE_SPARK_FADE_TIME * 1000
             );
-
-            cannonProps.current.imageFireSpark.w *=
-              cannonProps.current.sparkAnimation.scale / oldScale;
-            cannonProps.current.imageFireSpark.h *=
-              cannonProps.current.sparkAnimation.scale / oldScale;
+            const _x = cannonProps.current.sparkAnimation.scale / oldScale;
+            cannonProps.current.imageFireSpark.w *= _x;
+            cannonProps.current.imageFireSpark.h *= _x;
           }
         }
         // End Spark Animation
@@ -587,13 +602,13 @@ function App() {
     balls: (GameImage & {
       speed: number;
       direction: number;
+      leftWingImage: GameImage;
+      rightWingImage: GameImage;
+      imageGiftBox: GameImage;
+      giftAnimation: any;
     })[];
-    leftWingImage: GameImage;
-    rightWingImage: GameImage;
   }>({
     balls: [],
-    leftWingImage: createGameImage(),
-    rightWingImage: createGameImage(),
   });
 
   const loadBallImages = useCallback(() => {
@@ -629,6 +644,10 @@ function App() {
         ...createGameImage(),
         speed: 0,
         direction: 1,
+        leftWingImage: createGameImage(),
+        rightWingImage: createGameImage(),
+        imageGiftBox: createGameImage(),
+        giftAnimation: {},
       };
       res.image.src = img;
       res.image.onload = () => {
@@ -636,12 +655,30 @@ function App() {
       };
       res.w = GameSettings.BALL_SIZE;
       res.h = GameSettings.BALL_SIZE;
+      res.leftWingImage.image.src = LeftWing;
+      res.rightWingImage.image.src = RightWing;
+      res.leftWingImage.w = GameSettings.WINGS_SIZE;
+      res.leftWingImage.h = GameSettings.WINGS_SIZE;
+      res.leftWingImage.image.onload = () => {
+        res.leftWingImage.isImageLoaded = true;
+      };
+      res.rightWingImage.w = GameSettings.WINGS_SIZE;
+      res.rightWingImage.h = GameSettings.WINGS_SIZE;
+      res.rightWingImage.image.onload = () => {
+        res.rightWingImage.isImageLoaded = true;
+      };
+      res.imageGiftBox.image.src = GiftBox;
+      res.imageGiftBox.w = GameSettings.BALL_SIZE;
+      res.imageGiftBox.h = GameSettings.BALL_SIZE;
+      res.imageGiftBox.image.onload = () => {
+        res.imageGiftBox.isImageLoaded = true;
+      };
+      res.giftAnimation = {
+        ...GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[0],
+      };
 
       return res;
     });
-
-    ballProps.current.leftWingImage.image.src = LeftWing;
-    ballProps.current.rightWingImage.image.src = RightWing;
   }, []);
 
   const ballsUpdate = useCallback(
@@ -666,18 +703,61 @@ function App() {
             item.x =
               -item.direction *
               (offset + randomInRange(ballXRange[0], ballXRange[1]));
+            item.leftWingImage.x = item.x - GameSettings.WINGS_SIZE;
+            item.rightWingImage.x = item.x + GameSettings.BALL_SIZE;
 
             const ballRow = randomInRangeInt(0, GameSettings.BALL_ROW - 1);
             item.y =
               GameSettings.BALL_ROW_GAP + ballRow * GameSettings.BALL_START_Y;
+            item.rightWingImage.y = item.y;
+            item.leftWingImage.y = item.y;
 
             item.speed = randomInRange(
               GameSettings.BALL_SPEED_RANGE[0],
               GameSettings.BALL_SPEED_RANGE[1]
             );
           }
+          const _x = (item.direction * (item.speed * delta)) / 1000;
+          item.x += _x;
+          item.leftWingImage.x += _x;
+          item.rightWingImage.x += _x;
+        }
 
-          item.x += (item.direction * (item.speed * delta)) / 1000;
+        if (
+          gameProps.canvas &&
+          item.imageGiftBox.x !== Infinity &&
+          item.imageGiftBox.y !== Infinity
+        ) {
+          item.imageGiftBox.x =
+            gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
+          item.imageGiftBox.y =
+            gameProps.canvas.height / 2 - item.imageGiftBox.h / 2;
+          // if (
+          //   item.giftAnimation.offset !==
+          //   GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset
+          // ) {
+          //   const pathCoords = [
+          //     {x: 20, y: 20}, {x: 100, y: 100}
+          //   ];
+          //   moveCoordinatesAnimation(
+          //     "offset",
+          //     item.giftAnimation,
+          //     pathCoords,
+          //     delta,
+          //     GameSettings.FIRE_SPARK_FADE_TIME * 100
+          //   );
+          //   // console.log(
+          //   //   delta,
+          //   //   item.giftAnimation.offset,
+          //   //   GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset,
+          //   //   item.imageGiftBox.x,
+          //   //   item.imageGiftBox.y
+          //   // );
+
+          //   item.imageGiftBox.y += item.giftAnimation.offset;
+          //   // item.imageGiftBox.x +=
+          //   // item.giftAnimation.offset;
+          // }
         }
       });
     },
@@ -688,112 +768,21 @@ function App() {
     if (gameProps.context && gameProps.canvas) {
       gameProps.context.save();
 
+      if (gameProps.context) {
+      }
+
       ballProps.current.balls.forEach((item) => {
         if (gameProps.context) {
           drawGameImage(gameProps.context, item);
+          drawGameImage(gameProps.context, item.leftWingImage);
+          drawGameImage(gameProps.context, item.rightWingImage);
+          drawGameImage(gameProps.context, item.imageGiftBox);
         }
       });
 
       gameProps.context.restore();
     }
   }, [gameProps.canvas, gameProps.context]);
-
-  // const [ballProps, setBallProps] = useState({
-  //   image: null,
-  //   isImageLoaded: false,
-  //   ballX: getRandomBallX(),
-  //   ballY: GameSettings.BALL_START_Y,
-  //   speed: GameSettings.BALL_SPEED,
-  // });
-
-  // function resetBallState() {
-  //   setBallProps(pre => {
-  //     pre.ballX = getRandomBallX();
-  //     pre.ballY = GameSettings.BALL_START_Y;
-  //     pre.speed = GameSettings.BALL_SPEED;
-  //     return pre;
-  //   });
-  // }
-
-  // function loadBallImage() {
-  //   setBallProps(pre => {
-  //     pre.image = new Image();
-  //     pre.image.onload = () => {
-  //       pre.isImageLoaded = true;
-  //     };
-  //     pre.image.src = getRandomBall();
-  //     return pre;
-  //   });
-  // }
-
-  // function getRandomBall() {
-  //   let random = Math.round(Math.random());
-  //   return random === 1 ? BallGreen : BallRed;
-  // }
-
-  // function getRandomBallX() {
-  //   let random = Math.round(
-  //     GameSettings.BALL_WIDTH +
-  //       Math.random() * (GameSettings.GAME_WIDTH - GameSettings.BALL_WIDTH * 2)
-  //   );
-  //   return random;
-  // }
-
-  // function ballDraw() {
-  //   if (!ballProps.isImageLoaded) {
-  //     return;
-  //   }
-  //   gameProps.context.drawImage(
-  //     ballProps.image,
-  //     ballProps.ballX,
-  //     ballProps.ballY,
-  //     GameSettings.BALL_WIDTH,
-  //     GameSettings.BALL_HEIGHT
-  //   );
-  // }
-
-  // function ballUpdate() {
-  //   if (
-  //     ballProps.ballY - GameSettings.BALL_HEIGHT >=
-  //     GameSettings.GAME_HEIGHT
-  //   ) {
-  //     resetBallState();
-  //   }
-  //   setBallProps(pre => {
-  //     pre.ballY += pre.speed;
-  //     return pre;
-  //   });
-  // }
-
-  // //spark props
-  // const [sparkProps, setSparkProps] = useState({
-  //   image: null,
-  //   isImageLoaded: false,
-  //   sparkX: GameSettings.SPARK_START_X,
-  //   sparkY: GameSettings.SPARK_START_Y,
-  // });
-
-  // function loadSparkImage() {
-  //   setSparkProps(pre => {
-  //     pre.image = new Image();
-  //     pre.image.onload = () => {
-  //       pre.isImageLoaded = true;
-  //     };
-  //     pre.image.src = Spark;
-  //     return pre;
-  //   });
-  // }
-
-  // function sparkDraw() {
-  //   if (!sparkProps.isImageLoaded) {
-  //     return;
-  //   }
-  //   gameProps.context.drawImage(
-  //     sparkProps.image,
-  //     sparkProps.sparkX,
-  //     sparkProps.sparkY
-  //   );
-  // }
 
   const getMousePos = useCallback(
     (event: MouseEvent | TouchEvent, rect: DOMRect) => {

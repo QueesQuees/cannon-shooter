@@ -7,6 +7,7 @@ export type GameImage = {
   y: number;
 };
 
+
 export type GameSound = HTMLAudioElement;
 
 export function degToRad(deg: number) {

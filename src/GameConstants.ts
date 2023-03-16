@@ -1,6 +1,7 @@
 import { degToRad } from "./helpers";
 
 export const BALL_SIZE = 200; // px
+export const WINGS_SIZE = 100; // px
 export const BALL_SPEED_RANGE = [200, 500]; // px/s
 export const BALL_START_X_INIT_RANGE = [1000, 3000]; // px
 export const BALL_START_X_RANGE = [5000, 10000]; // px
@@ -24,5 +25,5 @@ export const PROJECTILE_ROTATE_SPEED = degToRad(720); // deg/s
 export const FIRE_SPARK_FADE_TIME = 0.15; // s
 export const FIRE_SPARK_FADE_ANIMATION_KEYFRAMES = [
   { alpha: 1, offset: 0, scale: 1 },
-  { alpha: 0, offset: -20, scale: 1.3 },
+  { alpha: 0, offset: -200, scale: 1.3 },
 ];
