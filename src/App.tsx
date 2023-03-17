@@ -207,7 +207,7 @@ function App() {
           if (
             projectileProps.current.hanleCollide(ballProps.current.balls[i])
           ) {
-            // gameStates.current.gameStop = true;
+            gameStates.current.gameStop = true;
             // current ball
             let item = ballProps.current.balls[i];
             const itemXCurrent = item.x;
@@ -242,8 +242,14 @@ function App() {
             }
             item.x += (item.direction * (item.speed * delta)) / 1000;
             // Initiate explosion effect after impact
-            item.imageGiftBox.x = itemXCurrent;
-            item.imageGiftBox.y = itemYCurrent;
+            // item.imageGiftBox.x = itemXCurrent;
+            // item.imageGiftBox.y = itemYCurrent;
+            if (gameProps.canvas) {
+              item.imageGiftBox.x =
+                gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
+              item.imageGiftBox.y =
+                gameProps.canvas.height / 2 - item.imageGiftBox.h / 2 - 100;
+            }
 
             // Log Conllide
             projectileProps.current.collide = true;
@@ -684,7 +690,7 @@ function App() {
   const ballsUpdate = useCallback(
     (delta: number) => {
       ballProps.current.balls.forEach((item) => {
-        if (gameProps.canvas) {
+        if (gameProps.canvas && !gameStates.current.gameStop) {
           let ballXRange = null;
 
           if (item.x === Infinity || item.y === Infinity) {
@@ -728,10 +734,10 @@ function App() {
           item.imageGiftBox.x !== Infinity &&
           item.imageGiftBox.y !== Infinity
         ) {
-          item.imageGiftBox.x =
-            gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
-          item.imageGiftBox.y =
-            gameProps.canvas.height / 2 - item.imageGiftBox.h / 2;
+          // item.imageGiftBox.x =
+          //   gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
+          // item.imageGiftBox.y =
+          //   gameProps.canvas.height / 2 - item.imageGiftBox.h / 2;
           // if (
           //   item.giftAnimation.offset !==
           //   GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset
@@ -753,7 +759,6 @@ function App() {
           //   //   item.imageGiftBox.x,
           //   //   item.imageGiftBox.y
           //   // );
-
           //   item.imageGiftBox.y += item.giftAnimation.offset;
           //   // item.imageGiftBox.x +=
           //   // item.giftAnimation.offset;
