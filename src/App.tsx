@@ -15,7 +15,8 @@ import Cloud4 from "./cannon_shooter_assets/cloud4.png";
 import LeftWing from "./cannon_shooter_assets/left_wing.png";
 import RightWing from "./cannon_shooter_assets/right_wing.png";
 import Spark from "./cannon_shooter_assets/spark.png";
-import GiftBox from "./cannon_shooter_assets/giftBox.jpg";
+// import GiftBox from "./cannon_shooter_assets/giftBox.jpg";
+import GiftBox from "./cannon_shooter_assets/giftbg.png";
 import CannonFireSound from "./cannon_shooter_sounds/cannon_fire.wav";
 import * as GameSettings from "./GameConstants";
 import {
@@ -43,12 +44,35 @@ function App() {
     context: null,
   });
 
+  // game state
   const gameStates = useRef({
     interactionSeparateLine: 0,
     willFire: false,
     fired: false,
     fly: false,
     gameStop: false,
+    openGift: false,
+    score: 0,
+  });
+
+  const giftProps = useRef<{
+    openGift: boolean;
+    imageGiftBox: GameImage;
+    scores: number;
+  }>({ openGift: false, imageGiftBox: createGameImage(), scores: 0 });
+
+  //ball props
+  const ballProps = useRef<{
+    balls: (GameImage & {
+      speed: number;
+      direction: number;
+      leftWingImage: GameImage;
+      rightWingImage: GameImage;
+      imageGiftBox: GameImage;
+      giftAnimation: any;
+    })[];
+  }>({
+    balls: [],
   });
 
   const mouseProps = useRef<{
@@ -131,6 +155,22 @@ function App() {
     }
   }, [gameProps.canvas, gameProps.context]);
 
+  const loadGiftImage = useCallback(() => {
+    giftProps.current.imageGiftBox.image.src = GiftBox;
+    giftProps.current.imageGiftBox.image.onload = () => {
+      giftProps.current.imageGiftBox.isImageLoaded = true;
+      if (gameProps.context) {
+        gameProps.context.font = "40pt Calibri";
+        gameProps.context.fillText(
+          "BREAKOUT",
+          20,
+          80,
+          giftProps.current.imageGiftBox.image.width * 2,
+        );
+      }
+    };
+  }, [gameProps.context]);
+
   const backgroundDraw = useCallback(() => {
     if (gameProps.context && gameProps.canvas) {
       const { width, height } = gameProps.canvas;
@@ -208,6 +248,8 @@ function App() {
             projectileProps.current.hanleCollide(ballProps.current.balls[i])
           ) {
             gameStates.current.gameStop = true;
+            gameStates.current.openGift = true;
+            gameStates.current.score = gameStates.current.score + 1;
             // current ball
             let item = ballProps.current.balls[i];
             const itemXCurrent = item.x;
@@ -242,13 +284,69 @@ function App() {
             }
             item.x += (item.direction * (item.speed * delta)) / 1000;
             // Initiate explosion effect after impact
-            // item.imageGiftBox.x = itemXCurrent;
-            // item.imageGiftBox.y = itemYCurrent;
+
+            giftProps.current.imageGiftBox.w = 100;
+            giftProps.current.imageGiftBox.h = 50;
+
+            // Tính toán vị trí quà xuất hiện
             if (gameProps.canvas) {
-              item.imageGiftBox.x =
-                gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
-              item.imageGiftBox.y =
-                gameProps.canvas.height / 2 - item.imageGiftBox.h / 2 - 100;
+              let bol = true;
+              let showText = false;
+              setInterval(() => {
+                if (
+                  gameProps.canvas &&
+                  giftProps.current.imageGiftBox.h <
+                    GameSettings.GIFT_SIZE + 30 &&
+                  bol
+                ) {
+                  giftProps.current.imageGiftBox.w += 4;
+                  giftProps.current.imageGiftBox.h += 2;
+                  giftProps.current.imageGiftBox.x =
+                    gameProps.canvas.width / 2 -
+                    giftProps.current.imageGiftBox.w / 2;
+                  giftProps.current.imageGiftBox.y =
+                    gameProps.canvas.height / 2 -
+                    giftProps.current.imageGiftBox.h / 2 -
+                    100;
+                  if (
+                    giftProps.current.imageGiftBox.w >=
+                    GameSettings.GIFT_SIZE + 30
+                  ) {
+                    bol = false;
+                  }
+                }
+                if (
+                  !bol &&
+                  giftProps.current.imageGiftBox.h > GameSettings.GIFT_SIZE &&
+                  gameProps.canvas
+                ) {
+                  giftProps.current.imageGiftBox.w -= 6;
+                  giftProps.current.imageGiftBox.h -= 3;
+                  giftProps.current.imageGiftBox.x =
+                    gameProps.canvas.width / 2 -
+                    giftProps.current.imageGiftBox.w / 2;
+                  giftProps.current.imageGiftBox.y =
+                    gameProps.canvas.height / 2 -
+                    giftProps.current.imageGiftBox.h / 2 -
+                    100;
+                  if (
+                    giftProps.current.imageGiftBox.h - 3 <=
+                    GameSettings.GIFT_SIZE
+                  ) {
+                    showText = true;
+                    if (gameProps.context && showText) {
+                      gameProps.context.font = "20px Georgia";
+                      gameProps.context.fillText("My TEXT!", 100, 100);
+                    }
+                  }
+                }
+              }, 1);
+              console.log(323, giftProps.current.imageGiftBox.h);
+
+              if (gameProps.context) {
+                gameProps.context.font = "20px Georgia";
+                gameProps.context.fillText("My TEXT!", 100, 100);
+              }
             }
 
             // Log Conllide
@@ -507,7 +605,6 @@ function App() {
               delta,
               GameSettings.FIRE_SPARK_FADE_TIME * 1000
             );
-            console.log(delta, cannonProps.current.sparkAnimation.offset);
             cannonProps.current.imageFireSpark.y +=
               cannonProps.current.sparkAnimation.offset;
           }
@@ -603,20 +700,6 @@ function App() {
     }
   }, [gameProps.canvas, gameProps.context]);
 
-  //ball props
-  const ballProps = useRef<{
-    balls: (GameImage & {
-      speed: number;
-      direction: number;
-      leftWingImage: GameImage;
-      rightWingImage: GameImage;
-      imageGiftBox: GameImage;
-      giftAnimation: any;
-    })[];
-  }>({
-    balls: [],
-  });
-
   const loadBallImages = useCallback(() => {
     if (ballProps.current.balls.length > 7) {
     }
@@ -674,8 +757,8 @@ function App() {
         res.rightWingImage.isImageLoaded = true;
       };
       res.imageGiftBox.image.src = GiftBox;
-      res.imageGiftBox.w = GameSettings.BALL_SIZE;
-      res.imageGiftBox.h = GameSettings.BALL_SIZE;
+      res.imageGiftBox.w = 0;
+      res.imageGiftBox.h = 0;
       res.imageGiftBox.image.onload = () => {
         res.imageGiftBox.isImageLoaded = true;
       };
@@ -734,40 +817,18 @@ function App() {
           item.imageGiftBox.x !== Infinity &&
           item.imageGiftBox.y !== Infinity
         ) {
-          // item.imageGiftBox.x =
-          //   gameProps.canvas.width / 2 - item.imageGiftBox.w / 2;
-          // item.imageGiftBox.y =
-          //   gameProps.canvas.height / 2 - item.imageGiftBox.h / 2;
-          // if (
-          //   item.giftAnimation.offset !==
-          //   GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset
-          // ) {
-          //   const pathCoords = [
-          //     {x: 20, y: 20}, {x: 100, y: 100}
-          //   ];
-          //   moveCoordinatesAnimation(
-          //     "offset",
-          //     item.giftAnimation,
-          //     pathCoords,
-          //     delta,
-          //     GameSettings.FIRE_SPARK_FADE_TIME * 100
-          //   );
-          //   // console.log(
-          //   //   delta,
-          //   //   item.giftAnimation.offset,
-          //   //   GameSettings.FIRE_SPARK_FADE_ANIMATION_KEYFRAMES[1].offset,
-          //   //   item.imageGiftBox.x,
-          //   //   item.imageGiftBox.y
-          //   // );
-          //   item.imageGiftBox.y += item.giftAnimation.offset;
-          //   // item.imageGiftBox.x +=
-          //   // item.giftAnimation.offset;
-          // }
         }
       });
     },
     [gameProps.canvas]
   );
+
+  const giftGraw = useCallback(() => {
+    if (gameProps.context && gameProps.canvas) {
+      gameProps.context.save();
+      drawGameImage(gameProps.context, giftProps.current.imageGiftBox);
+    }
+  }, [gameProps.canvas, gameProps.context]);
 
   const ballsDraw = useCallback(() => {
     if (gameProps.context && gameProps.canvas) {
@@ -878,8 +939,9 @@ function App() {
     backgroundDraw();
     ballsDraw();
     cannonAndProjectileDraw();
+    giftGraw();
     //   sparkDraw();
-  }, [backgroundDraw, ballsDraw, cannonAndProjectileDraw]);
+  }, [backgroundDraw, ballsDraw, cannonAndProjectileDraw, giftGraw]);
 
   const gameLoop = useCallback(
     (now: number) => {
@@ -900,6 +962,7 @@ function App() {
     loadCannonImage();
     loadProjectileImage();
     loadBallImages();
+    loadGiftImage();
     // loadSparkImage();
     frameIdRef.current = requestAnimationFrame(gameLoop);
 
@@ -913,6 +976,7 @@ function App() {
     loadBallImages,
     loadCannonImage,
     loadCloudImages,
+    loadGiftImage,
     loadProjectileImage,
   ]);
 
